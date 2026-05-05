@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+import re
 import time
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Sequence
@@ -26,6 +27,21 @@ if TYPE_CHECKING:
 DescriptionItem = tuple[str, int, None, None, int, int, bool]
 
 _LOGGER = logging.getLogger(__name__)
+
+# DML verbs eligible for batch execution in executemany().
+_DML_BATCH_VERBS = frozenset({"INSERT", "UPDATE", "DELETE", "MERGE"})
+
+# Regex to strip leading SQL comments (block /* ... */ and line -- ...\n).
+
+_RE_LEADING_COMMENTS = re.compile(r"^(\s*(/\*.*?\*/|--[^\n]*\n))*\s*", re.DOTALL)
+
+
+def _extract_first_keyword(sql: str) -> str:
+    """Extract the first SQL keyword, skipping leading comments and whitespace."""
+    stripped = _RE_LEADING_COMMENTS.sub("", sql)
+    if not stripped:
+        return ""
+    return stripped.split(None, 1)[0].upper()
 
 
 class Cursor:
@@ -178,9 +194,7 @@ class Cursor:
             return self
 
         # Use DML whitelist: only batch for known DML verbs.
-        stripped = operation.lstrip()
-        first_word = stripped.split(None, 1)[0].upper() if stripped else ""
-        _DML_BATCH_VERBS = frozenset({"INSERT", "UPDATE", "DELETE", "REPLACE", "MERGE"})
+        first_word = _extract_first_keyword(operation)
         is_dml = first_word in _DML_BATCH_VERBS
 
         if not is_dml:

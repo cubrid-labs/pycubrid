@@ -16,6 +16,7 @@ from pycubrid.protocol import (
     GetLastInsertIdPacket,
     PrepareAndExecutePacket,
 )
+from pycubrid.cursor import _DML_BATCH_VERBS, _extract_first_keyword
 
 DescriptionItem = tuple[str, int, None, None, int, int, bool]
 
@@ -155,9 +156,7 @@ class AsyncCursor:
         if not seq_of_parameters:
             return self
 
-        stripped = operation.lstrip()
-        first_word = stripped.split(None, 1)[0].upper() if stripped else ""
-        _DML_BATCH_VERBS = frozenset({"INSERT", "UPDATE", "DELETE", "REPLACE", "MERGE"})
+        first_word = _extract_first_keyword(operation)
         is_dml = first_word in _DML_BATCH_VERBS
 
         if not is_dml:
