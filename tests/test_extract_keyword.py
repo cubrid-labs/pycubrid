@@ -50,6 +50,10 @@ class TestExtractFirstKeyword:
         # Comment with no SQL after it
         assert _extract_first_keyword("/* only comment */") == ""
 
+    def test_line_comment_no_trailing_newline(self):
+        """Line comment at EOF without trailing newline."""
+        assert _extract_first_keyword("-- only comment") == ""
+
     def test_replace_not_in_batch_verbs(self):
         """CUBRID does not support REPLACE; verify it's excluded from DML verbs."""
         assert "REPLACE" not in _DML_BATCH_VERBS

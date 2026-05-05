@@ -31,9 +31,9 @@ _LOGGER = logging.getLogger(__name__)
 # DML verbs eligible for batch execution in executemany().
 _DML_BATCH_VERBS = frozenset({"INSERT", "UPDATE", "DELETE", "MERGE"})
 
-# Regex to strip leading SQL comments (block /* ... */ and line -- ...\n).
+# Regex to strip leading SQL comments (block /* ... */ and line -- ... to EOL/EOF).
 
-_RE_LEADING_COMMENTS = re.compile(r"^(\s*(/\*.*?\*/|--[^\n]*\n))*\s*", re.DOTALL)
+_RE_LEADING_COMMENTS = re.compile(r"^(\s*(/\*.*?\*/|--[^\n]*(\n|$)))*\s*", re.DOTALL)
 
 
 def _extract_first_keyword(sql: str) -> str:
