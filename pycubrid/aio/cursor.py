@@ -160,8 +160,15 @@ class AsyncCursor:
         is_dml = first_word in _DML_BATCH_VERBS
 
         if not is_dml:
+            total_rowcount = 0
+            has_non_select = False
             for params in seq_of_parameters:
                 await self.execute(operation, params)
+                if self._statement_type != CUBRIDStatementType.SELECT and self._rowcount >= 0:
+                    total_rowcount += self._rowcount
+                    has_non_select = True
+            if has_non_select:
+                self._rowcount = total_rowcount
             return self
 
         sql_list = [self._bind_parameters(operation, params) for params in seq_of_parameters]
