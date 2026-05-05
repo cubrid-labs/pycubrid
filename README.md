@@ -39,7 +39,7 @@ Korean public-sector and enterprise applications. The existing C-extension drive
 ## Requirements
 
 - Python 3.10+
-- CUBRID database server 10.2+
+- CUBRID database server 10.2+ (CI validates 10.2, 11.0, 11.2, 11.4)
 
 ## Installation
 
@@ -140,6 +140,7 @@ marketers = cur.fetchall()
 - Full standard exception hierarchy: `Warning`, `Error`, `InterfaceError`, `DatabaseError`, `OperationalError`, `IntegrityError`, `InternalError`, `ProgrammingError`, `NotSupportedError`
 - Standard type objects: `STRING`, `BINARY`, `NUMBER`, `DATETIME`, `ROWID`
 - Standard constructors: `Date()`, `Time()`, `Timestamp()`, `Binary()`, `DateFromTicks()`, `TimeFromTicks()`, `TimestampFromTicks()`
+- `nextset()` raises `NotSupportedError` (CUBRID does not support multiple result sets)
 
 ## Features
 
@@ -157,7 +158,7 @@ marketers = cur.fetchall()
 
 ## Supported CUBRID Versions
 
-The project targets CUBRID 10.x and 11.x and is validated in CI against:
+The project targets CUBRID 10.2+ (protocol-compatible). CI validates against:
 
 - 10.2
 - 11.0

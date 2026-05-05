@@ -151,7 +151,8 @@ class Cursor:
                 self._connection._send_and_receive(lid_packet)
                 if lid_packet.last_insert_id:
                     self._lastrowid = int(lid_packet.last_insert_id)
-            except (InterfaceError, OperationalError, OSError, TypeError, ValueError):
+            except (InterfaceError, OperationalError, OSError, TypeError, ValueError) as exc:
+                _LOGGER.debug("lastrowid retrieval failed: %s", exc)
                 self._lastrowid = None
 
         if _timing is not None:
@@ -176,11 +177,13 @@ class Cursor:
         if not seq_of_parameters:
             return self
 
-        # Heuristic: detect SELECT to decide on batch path.
+        # Use DML whitelist: only batch for known DML verbs.
         stripped = operation.lstrip()
-        is_select = stripped[:6].upper().startswith("SELECT")
+        first_word = stripped.split(None, 1)[0].upper() if stripped else ""
+        _DML_BATCH_VERBS = frozenset({"INSERT", "UPDATE", "DELETE", "REPLACE", "MERGE"})
+        is_dml = first_word in _DML_BATCH_VERBS
 
-        if is_select:
+        if not is_dml:
             return self._executemany_loop(operation, seq_of_parameters)
 
         # --- DML batch path: render + single RPC --------------------------
@@ -308,8 +311,11 @@ class Cursor:
         return parameters
 
     def nextset(self) -> None:
+        """Not supported — CUBRID does not have multiple result sets."""
         self._check_closed()
-        return None
+        from .exceptions import NotSupportedError
+
+        raise NotSupportedError("CUBRID does not support multiple result sets")
 
     def __iter__(self) -> Cursor:
         """Return the cursor itself as an iterator over rows."""
