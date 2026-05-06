@@ -71,3 +71,85 @@ class TestSplitOnPlaceholders:
     def test_unterminated_block_comment(self):
         parts = _split_on_placeholders("/* unterminated SELECT ? FROM t")
         assert len(parts) == 1  # ? is inside comment, no placeholder
+
+
+class TestBindParametersIntegration:
+    """End-to-end _bind_parameters tests through Cursor path."""
+
+    def test_bind_skips_quoted_question_mark(self):
+        """Verify full bind path handles ? in string literals."""
+        from unittest.mock import MagicMock, patch
+        from pycubrid.cursor import Cursor
+
+        conn = MagicMock()
+        conn._no_backslash_escapes = False
+        conn._decode_collections = False
+        conn._json_deserializer = None
+        conn._fetch_size = 100
+        conn._timing = None
+        cur = Cursor(conn)
+
+        result = cur._bind_parameters(
+            "SELECT * FROM t WHERE name = 'what?' AND id = ?", [42]
+        )
+        assert result == "SELECT * FROM t WHERE name = 'what?' AND id = 42"
+
+    def test_bind_multiple_with_comments(self):
+        from unittest.mock import MagicMock
+        from pycubrid.cursor import Cursor
+
+        conn = MagicMock()
+        conn._no_backslash_escapes = False
+        conn._decode_collections = False
+        conn._json_deserializer = None
+        conn._fetch_size = 100
+        conn._timing = None
+        cur = Cursor(conn)
+
+        result = cur._bind_parameters(
+            "/* hint? */ INSERT INTO t (a, b) VALUES (?, ?)", ["hello", 99]
+        )
+        assert "hint?" in result
+        assert "'hello'" in result
+        assert "99" in result
+
+    def test_bind_wrong_count_with_quoted_question(self):
+        from unittest.mock import MagicMock
+        from pycubrid.cursor import Cursor
+        from pycubrid.exceptions import ProgrammingError
+
+        conn = MagicMock()
+        conn._no_backslash_escapes = False
+        conn._decode_collections = False
+        conn._json_deserializer = None
+        conn._fetch_size = 100
+        conn._timing = None
+        cur = Cursor(conn)
+
+        import pytest
+        # 'what?' doesn't count as placeholder, so only 1 real placeholder
+        with pytest.raises(ProgrammingError):
+            cur._bind_parameters(
+                "SELECT * FROM t WHERE name = 'what?' AND id = ?", [1, 2]
+            )
+
+
+class TestAsyncBindParity:
+    """Verify async cursor uses same placeholder logic."""
+
+    def test_async_bind_skips_quoted_question(self):
+        from unittest.mock import MagicMock, AsyncMock
+        from pycubrid.aio.cursor import AsyncCursor
+
+        conn = MagicMock()
+        conn._no_backslash_escapes = False
+        conn._decode_collections = False
+        conn._json_deserializer = None
+        conn._fetch_size = 100
+        conn._timing = None
+        cur = AsyncCursor(conn)
+
+        result = cur._bind_parameters(
+            "SELECT * FROM t WHERE name = 'what?' AND id = ?", [42]
+        )
+        assert result == "SELECT * FROM t WHERE name = 'what?' AND id = 42"
