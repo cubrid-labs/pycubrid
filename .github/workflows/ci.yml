@@ -157,3 +157,21 @@ jobs:
           CUBRID_TEST_URL: "cubrid://dba@localhost:33000/testdb"
         run: |
           python -m pytest tests/test_integration.py -v --tb=short
+
+  ci-gate:
+    name: CI Gate (all checks must pass)
+    if: always()
+    needs: [version-check, lint, offline-tests, packaging-smoke-test, integration-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check job results
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo '::error::One or more required jobs failed'
+            exit 1
+          fi
+          if [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo '::error::One or more required jobs were cancelled'
+            exit 1
+          fi
+          echo 'All CI checks passed ✓'
