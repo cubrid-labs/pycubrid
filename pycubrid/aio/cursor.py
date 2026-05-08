@@ -78,8 +78,8 @@ class AsyncCursor:
     @fetch_size.setter
     def fetch_size(self, value: int) -> None:
         """Set the server-side fetch batch size for this cursor."""
-        if value < 1:
-            raise ProgrammingError("fetch_size must be greater than zero")
+        if type(value) is not int or value < 1:
+            raise ProgrammingError("fetch_size must be an integer >= 1")
         self._fetch_size = value
 
     async def close(self) -> None:

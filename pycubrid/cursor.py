@@ -101,8 +101,8 @@ class Cursor:
         Args:
             value: Number of rows per server fetch (must be >= 1).
         """
-        if value < 1:
-            raise ProgrammingError("fetch_size must be greater than zero")
+        if type(value) is not int or value < 1:
+            raise ProgrammingError("fetch_size must be an integer >= 1")
         self._fetch_size = value
 
     def close(self) -> None:
