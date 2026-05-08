@@ -78,7 +78,7 @@ class TestBindParametersIntegration:
 
     def test_bind_skips_quoted_question_mark(self):
         """Verify full bind path handles ? in string literals."""
-        from unittest.mock import MagicMock, patch
+        from unittest.mock import MagicMock
         from pycubrid.cursor import Cursor
 
         conn = MagicMock()
@@ -126,7 +126,6 @@ class TestBindParametersIntegration:
         conn._timing = None
         cur = Cursor(conn)
 
-        import pytest
         # 'what?' doesn't count as placeholder, so only 1 real placeholder
         with pytest.raises(ProgrammingError):
             cur._bind_parameters(
@@ -138,7 +137,7 @@ class TestAsyncBindParity:
     """Verify async cursor uses same placeholder logic."""
 
     def test_async_bind_skips_quoted_question(self):
-        from unittest.mock import MagicMock, AsyncMock
+        from unittest.mock import MagicMock
         from pycubrid.aio.cursor import AsyncCursor
 
         conn = MagicMock()

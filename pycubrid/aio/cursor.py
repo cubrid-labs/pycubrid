@@ -14,7 +14,6 @@ from pycubrid._cursor_common import (
     escape_string,
     extract_first_keyword,
     format_parameter,
-    split_on_placeholders,
 )
 from pycubrid.constants import CUBRIDStatementType
 from pycubrid.exceptions import InterfaceError, OperationalError, ProgrammingError
