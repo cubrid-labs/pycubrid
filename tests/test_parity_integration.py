@@ -23,8 +23,6 @@ TEST_DB = os.environ.get("CUBRID_TEST_DB", "testdb")
 TEST_USER = os.environ.get("CUBRID_TEST_USER", "dba")
 TEST_PASSWORD = os.environ.get("CUBRID_TEST_PASSWORD", "")
 
-CONN_STR = f"CUBRID:{TEST_HOST}:{TEST_PORT}:{TEST_DB}:{TEST_USER}:{TEST_PASSWORD}:"
-
 
 def _can_connect() -> bool:
     try:
@@ -56,23 +54,6 @@ def _table_name() -> str:
 # ---------------------------------------------------------------------------
 
 
-def _sync_execute(sql: str, params: tuple = ()) -> list:
-    conn = pycubrid.connect(
-        host=TEST_HOST,
-        port=TEST_PORT,
-        database=TEST_DB,
-        user=TEST_USER,
-        password=TEST_PASSWORD,
-    )
-    conn.autocommit = True
-    try:
-        cur = conn.cursor()
-        cur.execute(sql, params)
-        if cur.description:
-            return cur.fetchall()
-        return []
-    finally:
-        conn.close()
 
 
 def _sync_scenario(table: str, rows: list[tuple]) -> list:
@@ -109,7 +90,7 @@ async def _async_scenario(table: str, rows: list[tuple]) -> list:
         user=TEST_USER,
         password=TEST_PASSWORD,
     )
-    conn.autocommit = False
+    await conn.set_autocommit(False)
     try:
         cur = conn.cursor()
         await cur.execute(f"DROP TABLE IF EXISTS {table}")
@@ -211,7 +192,7 @@ class TestParityTransactions:
                 user=TEST_USER,
                 password=TEST_PASSWORD,
             )
-            c.autocommit = False
+            await c.set_autocommit(False)
             cr = c.cursor()
             await cr.execute(f"DROP TABLE IF EXISTS {table}")
             await cr.execute(f"CREATE TABLE {table} (id INT)")
@@ -265,7 +246,7 @@ class TestParityFetchMethods:
                 user=TEST_USER,
                 password=TEST_PASSWORD,
             )
-            c.autocommit = True
+            await c.set_autocommit(True)
             cr = c.cursor()
             await cr.execute(f"DROP TABLE IF EXISTS {table}")
             await cr.execute(f"CREATE TABLE {table} (id INT, name VARCHAR(100), val DOUBLE)")
