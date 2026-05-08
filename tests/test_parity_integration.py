@@ -54,8 +54,6 @@ def _table_name() -> str:
 # ---------------------------------------------------------------------------
 
 
-
-
 def _sync_scenario(table: str, rows: list[tuple]) -> list:
     """Insert rows and select them back via sync API."""
     conn = pycubrid.connect(
