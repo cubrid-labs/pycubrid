@@ -358,9 +358,7 @@ class AsyncCursor:
         )
 
     def _format_parameter(self, value: Any) -> str:
-        return format_parameter(
-            value, no_backslash_escapes=self._connection._no_backslash_escapes
-        )
+        return format_parameter(value, no_backslash_escapes=self._connection._no_backslash_escapes)
 
     @staticmethod
     def _escape_string(value: str, *, no_backslash_escapes: bool = False) -> str:

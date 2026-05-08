@@ -37,6 +37,7 @@ _split_on_placeholders = split_on_placeholders
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class Cursor:
     """Database cursor implementing the DB-API 2.0 cursor interface."""
 
@@ -404,9 +405,7 @@ class Cursor:
         )
 
     def _format_parameter(self, value: Any) -> str:
-        return format_parameter(
-            value, no_backslash_escapes=self._connection._no_backslash_escapes
-        )
+        return format_parameter(value, no_backslash_escapes=self._connection._no_backslash_escapes)
 
     @staticmethod
     def _escape_string(value: str, *, no_backslash_escapes: bool = False) -> str:
