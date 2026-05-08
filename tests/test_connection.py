@@ -538,7 +538,6 @@ class TestSendAndReceiveFraming:
         assert sock.sendall.call_args_list[-1].args[0] == b"REQ"
 
 
-
 class TestConnectSocketLeak:
     """Regression tests for #122: socket leak on non-OSError during connect."""
 
@@ -580,6 +579,22 @@ class TestConnectSocketLeak:
         with patch(
             "pycubrid.protocol.OpenDatabasePacket.parse",
             side_effect=IndexError("broker info truncated"),
+        ):
+            with pytest.raises(OperationalError, match="failed to connect"):
+                Connection("localhost", 33000, "testdb", "dba", "")
+
+        sock.close.assert_called()
+
+    def test_handshake_parse_unicode_error_closes_socket(
+        self, socket_queue: list[MagicMock]
+    ) -> None:
+        """If handshake parse raises UnicodeDecodeError, socket must be closed."""
+        sock = make_socket([build_handshake_response()])
+        socket_queue.append(sock)
+
+        with patch(
+            "pycubrid.protocol.ClientInfoExchangePacket.parse",
+            side_effect=UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid"),
         ):
             with pytest.raises(OperationalError, match="failed to connect"):
                 Connection("localhost", 33000, "testdb", "dba", "")
