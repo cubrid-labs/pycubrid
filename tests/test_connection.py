@@ -570,3 +570,18 @@ class TestConnectSocketLeak:
                 Connection("localhost", 33000, "testdb", "dba", "")
 
         sock.close.assert_called()
+
+    def test_open_db_parse_index_error_closes_socket(self, socket_queue: list[MagicMock]) -> None:
+        """If open_db parse raises IndexError (truncated broker info), socket must be closed."""
+        open_db = build_open_db_response()
+        sock = make_socket([build_handshake_response(), open_db[:4], open_db[4:]])
+        socket_queue.append(sock)
+
+        with patch(
+            "pycubrid.protocol.OpenDatabasePacket.parse",
+            side_effect=IndexError("broker info truncated"),
+        ):
+            with pytest.raises(OperationalError, match="failed to connect"):
+                Connection("localhost", 33000, "testdb", "dba", "")
+
+        sock.close.assert_called()

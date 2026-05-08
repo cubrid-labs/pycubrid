@@ -172,7 +172,7 @@ class Connection:
                 self._database,
                 self._protocol_version,
             )
-        except (OSError, ValueError, struct.error, KeyError) as exc:
+        except (OSError, ValueError, struct.error, IndexError, UnicodeDecodeError) as exc:
             _LOGGER.debug(
                 "Connection failed to %s:%d/%s",
                 self._host,

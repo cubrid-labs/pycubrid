@@ -146,7 +146,7 @@ class AsyncConnection:
             self._session_id = open_db_packet.session_id
             self._protocol_version = open_db_packet.broker_info.get("protocol_version", 1)
             self._connected = True
-        except (OSError, ValueError, struct.error, KeyError) as exc:
+        except (OSError, ValueError, struct.error, IndexError, UnicodeDecodeError) as exc:
             raise OperationalError("failed to connect to CUBRID broker") from exc
         finally:
             if handshake_socket is not None:
