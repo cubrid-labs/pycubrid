@@ -212,7 +212,7 @@ class TestParityConnectionLifecycle:
         assert await close_cursor_then_connection(adapter) == (True, True)
 
     @pytest.mark.asyncio
-    async def test_async_create_lob_is_explicitly_sync_only(self) -> None:
+    async def test_async_connection_has_no_create_lob_method(self) -> None:
         sync_conn = pycubrid.connect(**connect_kwargs())
         async_conn = await pycubrid.aio.connect(**connect_kwargs())
         try:

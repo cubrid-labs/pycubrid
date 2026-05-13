@@ -570,8 +570,9 @@ async def executemany_batch_semantics(
                 "UPDATE %s SET name = 'updated' WHERE id = 2" % table,
             ],
         )
+        batch_rowcount = cur.rowcount
         await adapter.execute(cur, "SELECT COUNT(*) FROM %s" % table)
-        return results, cur.rowcount, await adapter.fetchone(cur)
+        return results, batch_rowcount, await adapter.fetchone(cur)
     finally:
         try:
             await cleanup_table(adapter, conn, table)
