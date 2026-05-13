@@ -327,11 +327,11 @@ class AsyncConnection(ConnectionCommonMixin):
                 return await asyncio.wait_for(coro, timeout=self._read_timeout)
             return await coro
         except asyncio.TimeoutError:
-            self._close_streams_sync()
+            await self._close_streams()
             self._connected = False
             raise OperationalError("read timeout") from None
         except OSError as exc:
-            self._close_streams_sync()
+            await self._close_streams()
             self._connected = False
             raise OperationalError("socket communication failed") from exc
 
@@ -349,7 +349,12 @@ class AsyncConnection(ConnectionCommonMixin):
         response_body = await self._recv_exact(reader, data_length + DataSize.CAS_INFO)
 
         self._cas_info = response_body[: DataSize.CAS_INFO]
-        packet.parse(response_body)
+        try:
+            packet.parse(response_body)
+        except (ValueError, struct.error, IndexError, UnicodeDecodeError) as exc:
+            await self._close_streams()
+            self._connected = False
+            raise OperationalError("malformed response from broker") from exc
         return packet
 
     async def _recv_exact(
