@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import json
 import os
+from collections.abc import Callable
 from typing import cast
 
 import pytest
@@ -30,6 +31,8 @@ pytestmark = [
     pytest.mark.skipif(not can_connect(), reason="CUBRID instance not available"),
 ]
 
+approx = cast(Callable[..., object], getattr(pytest, "approx"))
+
 
 @pytest.fixture(params=ADAPTERS, ids=[adapter.kind for adapter in ADAPTERS])
 def adapter(request: pytest.FixtureRequest) -> ParityAdapter:
@@ -52,7 +55,12 @@ class TestParityBasicTypes:
     @pytest.mark.asyncio
     async def test_large_string(self, adapter: ParityAdapter) -> None:
         big = "x" * 1000
-        result = await select_round_trip(adapter, [(1, big, 3.14)], table_prefix="large")
+        result = await select_round_trip(
+            adapter,
+            [(1, big, 3.14)],
+            table_prefix="large",
+            table_definition="(id INT, name VARCHAR(4096), val DOUBLE)",
+        )
         assert result == [(1, big, 3.14)]
 
 
@@ -61,7 +69,11 @@ class TestParityExecutemany:
     async def test_batch_insert(self, adapter: ParityAdapter) -> None:
         rows = [(index, "row_%d" % index, float(index) * 1.1) for index in range(50)]
         result = await select_round_trip(adapter, rows, table_prefix="batch_insert")
-        assert result == rows
+        assert len(result) == len(rows)
+        for actual, expected in zip(result, rows, strict=True):
+            assert actual[:2] == expected[:2]
+            # DOUBLE round-trips can normalize the final binary float bits.
+            assert actual[2] == approx(expected[2], abs=1e-12)
 
 
 class TestParityTransactions:

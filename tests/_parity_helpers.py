@@ -535,15 +535,17 @@ async def autocommit_transitions(adapter: ParityAdapter) -> tuple[bool, bool, bo
 async def insert_identity_values(adapter: ParityAdapter) -> tuple[int | None, str]:
     table = table_name("identity")
     conn = await adapter.connect()
-    await adapter.set_autocommit(conn, True)
+    await adapter.set_autocommit(conn, False)
     cur = adapter.cursor(conn)
     try:
         await adapter.execute(cur, "DROP TABLE IF EXISTS %s" % table)
         await adapter.execute(
             cur,
-            "CREATE TABLE %s (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(50))" % table,
+            "CREATE TABLE %s (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(50), val INT)"
+            % table,
         )
-        await adapter.execute(cur, "INSERT INTO %s (name) VALUES (?)" % table, ("alpha",))
+        await adapter.commit(conn)
+        await adapter.execute(cur, "INSERT INTO %s (name, val) VALUES (?, ?)" % table, ("alpha", 1))
         return adapter.lastrowid(cur), await adapter.get_last_insert_id(conn)
     finally:
         try:
