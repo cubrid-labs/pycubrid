@@ -138,6 +138,7 @@ jobs:
             sed -i '/^\[%BROKER1\]/,/^\[/ s/^\s*SSL\s*=\s*OFF/SSL=ON/' \$conf
             grep -A2 '^\[%BROKER1\]' \$conf | head -20
             cubrid broker restart
+            cubrid server start testdb || cubrid server start cubdb || true
           "
           cp "$RUNNER_TEMP/tls/cas_ssl_cert.crt" "$RUNNER_TEMP/cas_ssl_cert.crt"
           ls -l "$RUNNER_TEMP/cas_ssl_cert.crt"
