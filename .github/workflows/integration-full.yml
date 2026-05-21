@@ -99,6 +99,19 @@ jobs:
       - name: Start CUBRID broker with SSL=ON
         run: |
           set -euxo pipefail
+          # Generate a self-signed cert valid for `localhost` (the test host)
+          # so that the test fixture's verified SSLContext accepts the broker
+          # without disabling hostname checks.  The default cert shipped in
+          # the cubrid image has CN=www.cubrid.org and would fail hostname
+          # verification, causing every TLS test to silently skip.
+          mkdir -p "$RUNNER_TEMP/tls"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+            -keyout "$RUNNER_TEMP/tls/cas_ssl_cert.key" \
+            -out "$RUNNER_TEMP/tls/cas_ssl_cert.crt" \
+            -subj "/CN=localhost" \
+            -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+          chmod 600 "$RUNNER_TEMP/tls/cas_ssl_cert.key"
+
           docker run -d --rm --name cubrid-tls \
             -e CUBRID_DB=testdb \
             -p 33000:33000 \
@@ -112,19 +125,21 @@ jobs:
             echo "Waiting for BROKER1... (attempt $i/40)"
             sleep 3
           done
+          # Replace the default broker cert with our localhost-valid cert
+          # so the Python test fixture can verify the connection cleanly.
+          docker cp "$RUNNER_TEMP/tls/cas_ssl_cert.crt" cubrid-tls:/home/cubrid/CUBRID/conf/cas_ssl_cert.crt
+          docker cp "$RUNNER_TEMP/tls/cas_ssl_cert.key" cubrid-tls:/home/cubrid/CUBRID/conf/cas_ssl_cert.key
+          docker exec cubrid-tls bash -lc "chown cubrid:cubrid /home/cubrid/CUBRID/conf/cas_ssl_cert.* && chmod 600 /home/cubrid/CUBRID/conf/cas_ssl_cert.key"
           # Flip SSL=OFF -> SSL=ON for BROKER1 and restart the broker so
-          # the CAS workers reload the new TLS setting.
+          # the CAS workers reload the new TLS setting and the new cert.
           docker exec cubrid-tls bash -lc "
             set -eux
             conf=\$CUBRID/conf/cubrid_broker.conf
             sed -i '/^\[%BROKER1\]/,/^\[/ s/^\s*SSL\s*=\s*OFF/SSL=ON/' \$conf
             grep -A2 '^\[%BROKER1\]' \$conf | head -20
             cubrid broker restart
-            cubrid server start testdb || cubrid server start cubdb || true
           "
-          # Extract the default self-signed broker cert so the Python TLS
-          # client can verify the connection without disabling validation.
-          docker cp cubrid-tls:/home/cubrid/CUBRID/conf/cas_ssl_cert.crt "$RUNNER_TEMP/cas_ssl_cert.crt"
+          cp "$RUNNER_TEMP/tls/cas_ssl_cert.crt" "$RUNNER_TEMP/cas_ssl_cert.crt"
           ls -l "$RUNNER_TEMP/cas_ssl_cert.crt"
       - name: Probe TLS broker readiness
         env:
@@ -186,6 +201,10 @@ jobs:
           CUBRID_TLS_TEST_PASSWORD: ""
           CUBRID_TLS_TEST_CA_FILE: ${{ runner.temp }}/cas_ssl_cert.crt
           CUBRID_TLS_TEST_MISMATCH_HOST: "127.0.0.1"
+          # Trust the self-signed broker cert via Python's default SSL context
+          # (used by `ssl=True`) so the default-context test runs instead of
+          # being silently skipped.
+          SSL_CERT_FILE: ${{ runner.temp }}/cas_ssl_cert.crt
         run: |
           set -euxo pipefail
           # `-p no:cacheprovider` keeps the run isolated from prior caches
@@ -195,7 +214,7 @@ jobs:
           python -m pytest tests/test_aio_ssl_integration.py -v --tb=short \
             -o addopts="" -p no:cacheprovider \
             --no-header --no-summary -rN 2>&1 | tee tls-run.log
-          if grep -E "^SKIPPED" tls-run.log; then
+          if grep -E " SKIPPED " tls-run.log; then
             echo "::error::TLS integration tests skipped — broker provisioning is incomplete"
             exit 1
           fi
