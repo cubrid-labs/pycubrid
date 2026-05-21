@@ -109,7 +109,7 @@ jobs:
             -keyout "$RUNNER_TEMP/tls/cas_ssl_cert.key" \
             -out "$RUNNER_TEMP/tls/cas_ssl_cert.crt" \
             -subj "/CN=localhost" \
-            -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+            -addext "subjectAltName=DNS:localhost"
           chmod 600 "$RUNNER_TEMP/tls/cas_ssl_cert.key"
 
           docker run -d --rm --name cubrid-tls \
