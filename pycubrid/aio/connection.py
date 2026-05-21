@@ -163,6 +163,13 @@ class AsyncConnection(ConnectionCommonMixin):
         the public alternatives (``StreamReader.set_transport`` + rebuilt
         ``StreamWriter``) desynchronise the shared ``StreamReaderProtocol``
         state and break subsequent reads after the upgrade.
+
+        ``ssl_handshake_timeout`` is passed explicitly: on Python 3.10
+        ``loop.start_tls`` can hang on stalled handshakes (CPython
+        gh-142352, fixed in 3.13/3.14) and an outer ``asyncio.wait_for``
+        does not reliably interrupt it.  On any failure we ``abort()`` the
+        pre-TLS transport so the next reconnect starts cleanly instead of
+        leaking a half-upgraded SSL transport.
         """
         ssl_context = self._ssl_context
         assert ssl_context is not None
@@ -172,13 +179,22 @@ class AsyncConnection(ConnectionCommonMixin):
         loop = asyncio.get_running_loop()
         old_transport = self._writer.transport
         protocol = old_transport.get_protocol()
-        new_transport = await loop.start_tls(
-            old_transport,
-            protocol,
-            ssl_context,
-            server_hostname=self._host,
-        )
+        handshake_timeout = float(self._read_timeout) if self._read_timeout is not None else 10.0
+
+        try:
+            new_transport = await loop.start_tls(
+                old_transport,
+                protocol,
+                ssl_context,
+                server_hostname=self._host,
+                ssl_handshake_timeout=handshake_timeout,
+            )
+        except BaseException:
+            old_transport.abort()
+            raise
+
         if new_transport is None:
+            old_transport.abort()
             raise OperationalError("TLS upgrade returned no transport")
         self._writer._transport = new_transport  # type: ignore[attr-defined]
         self._reader._transport = new_transport  # type: ignore[attr-defined]
