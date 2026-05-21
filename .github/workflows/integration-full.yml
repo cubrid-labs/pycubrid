@@ -210,14 +210,18 @@ jobs:
         run: |
           set -euxo pipefail
           # `-p no:cacheprovider` keeps the run isolated from prior caches
-          # in container layers.  We assert no skips on the TLS file: if
-          # the broker provisioning above succeeded, every test in
-          # tests/test_aio_ssl_integration.py must actually execute.
+          # in container layers.  We assert that broker-provisioning skips
+          # cannot pass silently: every test must either pass or be skipped
+          # for an explicit, version-pinned reason (the Python 3.10 entry
+          # for test_aio_ssl_handshake_failure is the only allowed skip).
           python -m pytest tests/test_aio_ssl_integration.py -v --tb=short \
             -o addopts="" -p no:cacheprovider \
             --no-header --no-summary -rN 2>&1 | tee tls-run.log
-          if grep -E " SKIPPED " tls-run.log; then
-            echo "::error::TLS integration tests skipped — broker provisioning is incomplete"
+          unexpected_skips=$(grep -E " SKIPPED " tls-run.log \
+            | grep -v "test_aio_ssl_handshake_failure" || true)
+          if [ -n "$unexpected_skips" ]; then
+            echo "::error::TLS integration tests skipped unexpectedly — broker provisioning is incomplete"
+            echo "$unexpected_skips"
             exit 1
           fi
       - name: Stop CUBRID TLS broker

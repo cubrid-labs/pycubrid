@@ -164,12 +164,14 @@ class AsyncConnection(ConnectionCommonMixin):
         ``StreamWriter``) desynchronise the shared ``StreamReaderProtocol``
         state and break subsequent reads after the upgrade.
 
-        ``ssl_handshake_timeout`` is passed explicitly: on Python 3.10
-        ``loop.start_tls`` can hang on stalled handshakes (CPython
-        gh-142352, fixed in 3.13/3.14) and an outer ``asyncio.wait_for``
-        does not reliably interrupt it.  On any failure we ``abort()`` the
-        pre-TLS transport so the next reconnect starts cleanly instead of
-        leaking a half-upgraded SSL transport.
+        ``ssl_handshake_timeout`` is passed explicitly so a stalled
+        handshake cannot block the event loop indefinitely, and the
+        pre-TLS transport is ``abort()``ed on any failure so the next
+        reconnect starts cleanly instead of leaking a half-upgraded SSL
+        transport.  Note: this bounds peer-unresponsive hangs only.
+        Python 3.10 has separate known issues with hangs during
+        TLS-handshake-internal failures (CPython gh-142352 family, fixed
+        in 3.13/3.14) that this kwarg does not address.
         """
         ssl_context = self._ssl_context
         assert ssl_context is not None
