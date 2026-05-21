@@ -188,6 +188,7 @@ jobs:
           print("Final TLS probe OK")
           PY
       - name: Run async TLS integration tests
+        timeout-minutes: 5
         env:
           CUBRID_TEST_URL: "cubrid://dba@localhost:33000/testdb"
           CUBRID_TEST_HOST: localhost
